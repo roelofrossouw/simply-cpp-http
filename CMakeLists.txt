@@ -33,4 +33,6 @@ if (SC_HTTP_BUILD_TESTS)
     add_subdirectory(tests sc-http-test)
 endif ()
 
-package_sc_module(DEV_DEPENDS "simply-cpp-dev (>= 2.0.0~)" libcurl4-openssl-dev)
+# rest.h and ollama.h were simply-cpp-dev's before 2.0.0: this package takes them over.
+package_sc_module(DEV_DEPENDS "simply-cpp-dev (>= 2.0.0~)" libcurl4-openssl-dev
+        DEV_BREAKS "simply-cpp-dev (<< 2.0.0~)" DEV_REPLACES "simply-cpp-dev (<< 2.0.0~)")
