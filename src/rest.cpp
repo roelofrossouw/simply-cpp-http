@@ -27,7 +27,15 @@ namespace sc {
         return size * nmemb;
     }
 
-    std::map<std::string, std::string> rest::fetch_cache;
+    namespace {
+        // fetch()'s answers. A function's static, not an exported global: a library holding this
+        // object, linked statically into several shared libraries, would otherwise destroy it once
+        // per library at exit (sc-core's "no globals with destructors").
+        std::map<std::string, std::string> &fetch_cache() {
+            static std::map<std::string, std::string> cache;
+            return cache;
+        }
+    }
 
     rest::rest(const std::string &url) : url_(url) {
         header("Content-Type", "application/json");
@@ -301,7 +309,7 @@ namespace sc {
 
     std::string rest::fetch(const std::string &url, const std::string &base_url) {
         if (url.empty() || url.size() > 100) return "";
-        if (const auto cached = fetch_cache.find(url); cached != fetch_cache.end()) return cached->second;
+        if (const auto cached = fetch_cache().find(url); cached != fetch_cache().end()) return cached->second;
 
         std::string content;
         if (std::filesystem::exists(url)) content = file_get_contents(url);
@@ -312,6 +320,6 @@ namespace sc {
         }
         if (content.empty()) content = rest(url).get();
 
-        return fetch_cache[url] = content;
+        return fetch_cache()[url] = content;
     }
 }

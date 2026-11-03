@@ -140,7 +140,6 @@ namespace sc {
         long max_redirects_ = 5;
         std::map<std::string, header_entry> headers_; // by lowercased name
         std::string response;
-        static std::map<std::string, std::string> fetch_cache;
         std::map<std::string, std::string> response_headers_;
 
         // method ("GET", "HEAD", "POST", ...) with body when there is one, or the parts of a
