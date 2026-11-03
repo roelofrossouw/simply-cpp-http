@@ -16,7 +16,9 @@ set(SOURCE_OBJECTS)
 set(SOURCE_LIBRARIES)
 set(SOURCE_LINK_LIBRARIES)
 
-add_sc_object(rest LINK_LIBRARIES sc::sc-core CURL::libcurl PUBLIC_LINK_LIBRARIES sc::sc-core CURL::libcurl)
+# libcurl by name, as sc-core linked it: CURL::libcurl's include directory (the macOS SDK's
+# usr/include) would come before libc++'s headers in every module using sc-http.
+add_sc_object(rest LINK_LIBRARIES sc::sc-core curl PUBLIC_LINK_LIBRARIES sc::sc-core curl)
 add_sc_object(ollama LINK_LIBRARIES sc::sc-core nlohmann_json::nlohmann_json PUBLIC_LINK_LIBRARIES sc::sc-core)
 
 add_sc_libraries(DESCRIPTION "simply-cpp HTTP: sc::rest over libcurl, and sc::ollama")
