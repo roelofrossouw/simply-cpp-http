@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/SimplyCppFunctions.cmake")
+include(CMakeFindDependencyMacro)
+
+find_or_install_package(sc-core simply-cpp-dev simply-cpp 2.0.0)
+# sc::rest is libcurl underneath.
+find_or_install_package(CURL libcurl4-openssl-dev curl)
+
+include("${CMAKE_CURRENT_LIST_DIR}/sc-httpTargets.cmake")

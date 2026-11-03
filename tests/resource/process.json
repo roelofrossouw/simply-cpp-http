@@ -1,0 +1,18 @@
+{
+  "instruction": "Write a json object giving the days of the week with an abbreviation as the key.",
+  "debug_server": "http://127.0.0.1",
+  "debug_model": "qwen3.5:4b-mlx",
+  "server": "http://ollama.v.1web.co.za",
+  "model": "2web",
+  "port": 11434,
+  "think": false,
+  "timeout": 360,
+  "max_data_size": 8200,
+  "max_pages": 100,
+  "temperature": 0,
+  "repeat_penalty": 1.0,
+  "num_predict": 16384,
+  "num_ctx": 16232,
+  "seed": 180001,
+  "schema": "json"
+}
