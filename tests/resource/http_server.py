@@ -74,6 +74,9 @@ mutual = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 mutual.load_cert_chain(server_cert, server_key)
 mutual.verify_mode = ssl.CERT_REQUIRED
 mutual.load_verify_locations(client_ca)
+# macOS's own libcurl (LibreSSL 3.3.6) sends a client certificate over TLS 1.3 in a way OpenSSL
+# 4.x refuses ("tlsv1 alert decode error"); over TLS 1.2 they agree.
+mutual.maximum_version = ssl.TLSVersion.TLSv1_2
 
 print("listening", serve(), serve(tls), serve(mutual), flush=True)
 while True:
