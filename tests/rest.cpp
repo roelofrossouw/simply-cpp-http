@@ -74,10 +74,13 @@ int main() {
         CHECK_EQ(nowhere.status(), 0L);
         CHECK(!nowhere.error().empty());
         CHECK(nowhere.post("{}").find("\"error\"") != std::string::npos);
-        sc::rest file{"file:///etc/hosts"};
-        CHECK_EQ(file.quiet().get(), std::string{});
-        CHECK_EQ(file.status(), 0L);
-        CHECK(!file.error().empty());
+        // Nothing but http and https: no file read, no ftp, gopher or dict.
+        for (const std::string url: {"file:///etc/hosts", "file:///etc/hostname", "ftp://127.0.0.1/x", "gopher://127.0.0.1/x", "dict://127.0.0.1/x"}) {
+            sc::rest other{url};
+            CHECK_EQ(other.quiet().get(), std::string{});
+            CHECK_EQ(other.status(), 0L);
+            CHECK_MSG(other.error().find("rotocol") != std::string::npos, url + ": " + other.error());
+        }
     }
 
     if (std::system("openssl version > /dev/null 2>&1") != 0 || std::system("python3 --version > /dev/null 2>&1") != 0) {
@@ -205,6 +208,12 @@ int main() {
         CHECK_EQ(json::parse(followed.follow_redirects().get()).at("path").get<std::string>(), std::string{"/echo"});
         CHECK_EQ(followed.status(), 200L);
         CHECK_EQ(followed.effective_url(), http + "/echo");
+        // A redirect to file:// is refused, not followed.
+        sc::rest to_file{http + "/to-file"};
+        const auto refused = to_file.quiet().follow_redirects().get();
+        CHECK_EQ(to_file.status(), 0L);
+        CHECK(refused.find("localhost") == std::string::npos); // /etc/hosts wasn't read
+        CHECK_MSG(to_file.error().find("rotocol") != std::string::npos, to_file.error());
         sc::rest too_many{http + "/redirect/4"};
         (void) too_many.quiet().follow_redirects(true, 2).get();
         CHECK_EQ(too_many.status(), 0L);

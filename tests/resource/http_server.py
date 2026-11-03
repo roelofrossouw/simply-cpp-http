@@ -7,6 +7,7 @@ certificate signed by (or being) CLIENT_CA.
                   (base64), content_type
   /status/N       status N, the body "status N"
   /redirect/N     302 to /redirect/N-1, and /redirect/0 to /echo
+  /to-file        302 to file:///etc/hosts (which a client must refuse to follow)
   /slow           answers after 3 s
   /binary         the bytes 0 to 255, and a header X-Test: yes
 """
@@ -47,6 +48,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             left = int(url.path.split("/")[2])
             target = "/echo" if left == 0 else "/redirect/%d" % (left - 1)
             return self.send(302, b"", extra={"Location": target})
+        if url.path == "/to-file":
+            return self.send(302, b"", extra={"Location": "file:///etc/hosts"})
         if url.path == "/slow":
             time.sleep(3)
             return self.send(200, b"slow")
