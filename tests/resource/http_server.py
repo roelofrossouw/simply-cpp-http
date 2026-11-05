@@ -9,9 +9,12 @@ certificate signed by (or being) CLIENT_CA.
   /redirect/N     302 to /redirect/N-1, and /redirect/0 to /echo
   /to-file        302 to file:///etc/hosts (which a client must refuse to follow)
   /slow           answers after 3 s
+  /drip           "drips" one byte every 0.6 s: slow but steady, 3 s in all
+  /stall          one byte of "stall", then nothing for 4 s
+  /gzip           "compressed hello" gzipped when the request accepts gzip (Content-Encoding: gzip), else plain
   /binary         the bytes 0 to 255, and a header X-Test: yes
 """
-import base64, http.server, json, ssl, sys, threading, time, urllib.parse
+import base64, gzip, http.server, json, ssl, sys, threading, time, urllib.parse
 
 server_cert, server_key, client_ca = sys.argv[1:4]
 
@@ -53,6 +56,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if url.path == "/slow":
             time.sleep(3)
             return self.send(200, b"slow")
+        if url.path in ("/drip", "/stall"):
+            # Headers first, then the body a byte at a time: what an idle limit tells apart
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", "5")
+            self.end_headers()
+            self.wfile.flush()
+            for i, byte in enumerate(b"drips" if url.path == "/drip" else b"stall"):
+                time.sleep(0.6 if url.path == "/drip" else (0 if i == 0 else 4))
+                self.wfile.write(bytes([byte]))
+                self.wfile.flush()
+            return
+        if url.path == "/gzip":
+            if "gzip" in (self.headers.get("Accept-Encoding") or ""):
+                return self.send(200, gzip.compress(b"compressed hello"), extra={"Content-Encoding": "gzip"})
+            return self.send(200, b"compressed hello")
         if url.path == "/binary":
             return self.send(200, bytes(range(256)), "application/octet-stream", {"X-Test": "yes"})
         self.send(404, b"no such route")

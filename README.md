@@ -44,7 +44,9 @@ upload.post_multipart({{.name = "note", .value = "hi"},
 
 - **Methods:** `get()`, `head()`, `post(body)`, `put(body)`, `patch(body)`, `del()`,
   `post_form(fields)`, `post_multipart(parts)`. Each returns the response body, whatever the
-  status, byte for byte; `status()` is 0 when no response came, and `error()` says why. Without a
+  status, byte for byte; `status()` is 0 when no response came, and `error()` says why
+  (`error_code()`: curl's number, 7 couldn't connect, 28 timed out, 56 the connection broke while
+  receiving; 0 with a response; since 1.1.0). Without a
   response, a body request returns `{"error": "..."}`, and the error goes to `std::cerr` unless
   `quiet()`.
 - **Query parameters:** `query(name, value)` or `query(fields)`, URL-encoded and added to the URL
@@ -54,8 +56,13 @@ upload.post_multipart({{.name = "note", .value = "hi"},
   `Content-Type: application/json` unless told otherwise; `post_form()` sends its own for that
   request, and a multipart body's, with its boundary, is curl's. `bearer(token)` sets
   `Authorization`. `response_headers()` gives the last response's by lower-cased name.
-- **Limits:** `timeout(seconds)` for the whole request (30), `connect_timeout(seconds)` for
-  connecting (10).
+- **Limits:** `timeout(seconds)` for the whole request (30; 0 none), `connect_timeout(seconds)` for
+  connecting (10), `idle_timeout(seconds)` (since 1.1.0; none by default) when no data arrives for
+  that long: a slow but steady answer goes on, a silent server doesn't (with `timeout(0)`, PHP's
+  read timeout).
+- **Compression** (since 1.1.0): requests ask for what curl can undo (gzip, deflate, ...) and get
+  the content undone; `response_headers()` still says `content-encoding`. A request's own
+  `Accept-Encoding` header replaces the ask.
 - **Redirects:** not followed unless `follow_redirects(true, max = 5)`; then `effective_url()` is
   where they led. A POST answered with 301, 302 or 303 is followed with a GET, as browsers do.
 - **Only http:// and https://**, for the URL and any redirect: a `file://` URL gets no response.

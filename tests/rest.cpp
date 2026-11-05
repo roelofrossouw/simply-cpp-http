@@ -227,6 +227,34 @@ int main() {
         (void) slow.quiet().timeout(1).get();
         CHECK_EQ(slow.status(), 0L);
         CHECK(std::chrono::steady_clock::now() - started < std::chrono::seconds{3});
+        CHECK_EQ(slow.error_code(), 28L); // CURLE_OPERATION_TIMEDOUT
+    }
+
+    SECTION("An idle limit: a slow but steady answer goes on, a silent one stops; curl's error numbers");
+    {
+        sc::rest drip{http + "/drip"};
+        CHECK_EQ(drip.timeout(0).idle_timeout(2).get(), std::string{"drips"}); // 3 s in all, a byte every 0.6 s
+        CHECK_EQ(drip.status(), 200L);
+        CHECK_EQ(drip.error_code(), 0L);
+        sc::rest stall{http + "/stall"};
+        const auto started = std::chrono::steady_clock::now();
+        (void) stall.quiet().timeout(0).idle_timeout(1).get();
+        CHECK_EQ(stall.status(), 0L);
+        CHECK_EQ(stall.error_code(), 28L);
+        CHECK(std::chrono::steady_clock::now() - started < std::chrono::milliseconds{3500}); // not the 4 s silence
+        sc::rest nowhere{"http://127.0.0.1:1/"};
+        (void) nowhere.quiet().get();
+        CHECK_EQ(nowhere.error_code(), 7L); // CURLE_COULDNT_CONNECT
+    }
+
+    SECTION("Compressed answers: gzip asked for and undone");
+    {
+        sc::rest packed{http + "/gzip"};
+        CHECK_EQ(packed.get(), std::string{"compressed hello"});
+        CHECK_EQ(packed.response_headers().at("content-encoding"), std::string{"gzip"});
+        sc::rest own{http + "/echo"};
+        const auto asked = json::parse(own.get()).at("headers");
+        CHECK_MSG(asked.contains("accept-encoding") && asked.at("accept-encoding").get<std::string>().find("gzip") != std::string::npos, asked.dump());
     }
 
     SECTION("TLS: a self-signed server refused unless trusted; host names; client certificates");

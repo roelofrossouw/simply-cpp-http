@@ -59,17 +59,20 @@ namespace sc {
             bool run() {
                 if (!curl_) {
                     last_error_ = "No connection available";
+                    last_code_ = CURLE_FAILED_INIT;
                     return false;
                 }
                 char details[CURL_ERROR_SIZE] = {};
                 option(CURLOPT_ERRORBUFFER, details);
                 const CURLcode result = curl_easy_perform(curl_);
                 last_error_ = *details ? details : curl_easy_strerror(result);
+                last_code_ = result;
                 option(CURLOPT_ERRORBUFFER, static_cast<char *>(nullptr));
                 return result == CURLE_OK;
             }
 
             [[nodiscard]] const std::string &last_error() const { return last_error_; }
+            [[nodiscard]] long last_code() const { return last_code_; }
 
             // 0 when there was no response.
             [[nodiscard]] long status() const {
@@ -110,10 +113,12 @@ namespace sc {
                     if (!each.file.empty()) {
                         if (!std::filesystem::is_regular_file(each.file)) {
                             last_error_ = "Can't read " + each.file + " for the part " + each.name;
+                            last_code_ = CURLE_READ_ERROR;
                             return false;
                         }
                         if (curl_mime_filedata(part, each.file.c_str()) != CURLE_OK) {
                             last_error_ = "Can't read " + each.file + " for the part " + each.name;
+                            last_code_ = CURLE_READ_ERROR;
                             return false;
                         }
                         if (!each.filename.empty()) curl_mime_filename(part, each.filename.c_str());
@@ -132,6 +137,7 @@ namespace sc {
             curl_slist *headers_{nullptr};
             curl_mime *mime_{nullptr};
             std::string last_error_{};
+            long last_code_ = CURLE_OK;
         };
     }
 
@@ -188,6 +194,13 @@ namespace sc {
         conn.option(CURLOPT_NOSIGNAL, 1L);
         conn.option(CURLOPT_CONNECTTIMEOUT, connect_timeout_secs_);
         conn.option(CURLOPT_TIMEOUT, timeout_secs_);
+        if (idle_secs_ > 0) {
+            conn.option(CURLOPT_LOW_SPEED_LIMIT, 1L);
+            conn.option(CURLOPT_LOW_SPEED_TIME, idle_secs_);
+        }
+        // Asks for the encodings curl can undo (gzip, deflate ...) and undoes them: the body is the
+        // content itself, as a browser has it. A request's own Accept-Encoding header replaces it.
+        conn.option(CURLOPT_ACCEPT_ENCODING, "");
         for (const auto &[lower, entry]: headers_) {
             // A multipart body's Content-Type, with its boundary, is curl's own.
             if (parts && lower == "content-type") continue;
@@ -228,6 +241,7 @@ namespace sc {
         const bool ran = ready && conn.run();
         status_ = ran ? conn.status() : 0;
         error_ = ran ? std::string{} : conn.last_error();
+        error_code_ = ran ? 0 : conn.last_code();
         effective_url_ = conn.effective_url();
         total_time_ = conn.total_time();
         if (!ran) {
@@ -271,6 +285,11 @@ namespace sc {
 
     rest &rest::connect_timeout(const long timeout) {
         connect_timeout_secs_ = timeout;
+        return *this;
+    }
+
+    rest &rest::idle_timeout(const long seconds) {
+        idle_secs_ = seconds;
         return *this;
     }
 

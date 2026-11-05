@@ -84,10 +84,15 @@ namespace sc {
         /// How long the last request took, in seconds, redirects included.
         [[nodiscard]] double total_time() const { return total_time_; }
 
-        /// The whole request's limit in seconds (default 30); connect_timeout() only connecting's
-        /// (default 10).
+        /// The whole request's limit in seconds (default 30; 0: none); connect_timeout() only
+        /// connecting's (default 10).
         rest &timeout(long timeout);
         rest &connect_timeout(long timeout);
+        /// Gives up when no data arrives for this many seconds (less than a byte a second over that
+        /// time), however long the whole request may take: a slow but steady answer goes on, a
+        /// silent server doesn't. 0 (the default): no such limit. With timeout(0), as PHP's
+        /// file_get_contents' read timeout.
+        rest &idle_timeout(long seconds);
         /// A TLS client certificate (PEM) and its key, for a server that asks for one (LXD). An
         /// empty key_file: the key is in certificate_file too (as PHP's local_cert). passphrase:
         /// the key's, when it's encrypted.
@@ -109,6 +114,10 @@ namespace sc {
         rest &quiet(bool on = true);
         /// Why the last request got no response ("Couldn't connect to server"); empty when one came.
         [[nodiscard]] const std::string &error() const { return error_; }
+        /// The same as curl's error number (CURLcode: 7 couldn't connect, 28 timed out, 56 the
+        /// connection broke while receiving ...); 0 when a response came. Curl's numbers, kept as they
+        /// are whatever does the transfer.
+        [[nodiscard]] long error_code() const { return error_code_; }
 
         /// text with every byte but A-Z a-z 0-9 - . _ ~ as %XX (RFC 3986).
         [[nodiscard]] static std::string url_encode(std::string_view text);
@@ -129,8 +138,10 @@ namespace sc {
         std::string query_;
         long connect_timeout_secs_ = 10;
         long timeout_secs_ = 30;
+        long idle_secs_ = 0;
         long status_ = 0;
         std::string error_;
+        long error_code_ = 0;
         std::string effective_url_;
         double total_time_ = 0;
         std::string certificate_file_, key_file_, passphrase_, ca_file_, pins_;
