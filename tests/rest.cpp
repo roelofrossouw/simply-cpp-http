@@ -1,7 +1,7 @@
 // sc::rest against a stand-in web server (resource/http_server.py: HTTP, HTTPS, and HTTPS that wants
 // a client certificate), and fetch() on local files.
-#include <rest.h>
-#include <sc.h>
+#include <sc/http/rest.h>
+#include <sc/core/sc.h>
 
 #include "sc_test.h"
 

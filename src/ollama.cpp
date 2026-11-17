@@ -1,6 +1,6 @@
-#include "ollama.h"
-#include <sc.h>
-#include <rest.h>
+#include <sc/http/ollama.h>
+#include <sc/core/sc.h>
+#include <sc/http/rest.h>
 #include <nlohmann/json.hpp>
 
 using namespace std;

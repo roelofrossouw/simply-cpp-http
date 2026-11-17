@@ -1,6 +1,6 @@
-#include <ollama.h>
-#include <rest.h>
-#include <sc.h>
+#include <sc/http/ollama.h>
+#include <sc/http/rest.h>
+#include <sc/core/sc.h>
 
 #include <stdexcept>
 #include <string>

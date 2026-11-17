@@ -19,7 +19,7 @@ target_link_libraries(myapp PRIVATE sc::sc-http)   # or sc::sc-http-shared
 ```
 
 ```cpp
-#include <rest.h>
+#include <sc/http/rest.h>
 
 sc::rest api{"https://example.com/api/items"};
 api.bearer(token);
