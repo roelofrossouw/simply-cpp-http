@@ -2,6 +2,7 @@
 #include <sc/core/base64.h>
 #include <sc/core/core.h>
 #include <sc/core/timer.h>
+#include <iostream>
 #include <sc/http/rest.h>
 #include <nlohmann/json.hpp>
 
