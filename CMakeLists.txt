@@ -9,7 +9,7 @@ get_sc_version()
 message(STATUS "SimplyCPP ${SC_MODULE} Version: ${SC_VERSION}")
 
 # sc::lowercase and file_get_contents (sc.h), nlohmann/json for sc::ollama; libcurl underneath sc::rest.
-find_or_install_package(sc-core simply-cpp-dev simply-cpp 2.2.0)
+find_or_install_package(sc-core simply-cpp-dev simply-cpp 3.0.0)
 find_or_install_package(CURL libcurl4-openssl-dev curl)
 
 set(SOURCE_OBJECTS)
@@ -36,5 +36,5 @@ if (SC_HTTP_BUILD_TESTS)
 endif ()
 
 # rest.h and ollama.h were simply-cpp-dev's before 2.0.0: this package takes them over.
-package_sc_module(DEV_DEPENDS "simply-cpp-dev (>= 2.0.0~)" libcurl4-openssl-dev
+package_sc_module(DEV_DEPENDS "simply-cpp-dev (>= 3.0.0~)" libcurl4-openssl-dev
         DEV_BREAKS "simply-cpp-dev (<< 2.0.0~)" DEV_REPLACES "simply-cpp-dev (<< 2.0.0~)")

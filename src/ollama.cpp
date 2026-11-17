@@ -1,5 +1,7 @@
 #include <sc/http/ollama.h>
-#include <sc/core/sc.h>
+#include <sc/core/base64.h>
+#include <sc/core/core.h>
+#include <sc/core/timer.h>
 #include <sc/http/rest.h>
 #include <nlohmann/json.hpp>
 

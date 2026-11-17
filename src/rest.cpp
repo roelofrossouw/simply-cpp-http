@@ -1,5 +1,5 @@
 #include <sc/http/rest.h>
-#include <sc/core/sc.h>
+#include <sc/core/core.h>
 #include <curl/curl.h>
 
 #include <filesystem>
