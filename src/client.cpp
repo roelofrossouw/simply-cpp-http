@@ -1,11 +1,11 @@
-#include <sc/http/rest.h>
+#include <sc/http/client.h>
 #include <sc/core/core.h>
 #include <curl/curl.h>
 
 #include <filesystem>
 #include <iostream>
 
-namespace sc {
+namespace sc::http {
     // One response header line, "Name: value", into the map by its lowercased name. A status line
     // (a new response, after a redirect or a 100 Continue) starts the map again.
     static size_t header_data(char *contents, size_t size, size_t nmemb, void *userp) {
@@ -37,7 +37,7 @@ namespace sc {
         }
     }
 
-    rest::rest(const std::string &url) : url_(url) {
+    client::client(const std::string &url) : url_(url) {
         header("Content-Type", "application/json");
     }
 
@@ -105,7 +105,7 @@ namespace sc {
             }
 
             // A multipart body; false with last_error set when a file part can't be read.
-            bool multipart(const std::vector<rest::part> &parts) {
+            bool multipart(const std::vector<client::part> &parts) {
                 mime_ = curl_mime_init(curl_);
                 for (const auto &each: parts) {
                     curl_mimepart *part = curl_mime_addpart(mime_);
@@ -141,7 +141,7 @@ namespace sc {
         };
     }
 
-    std::string rest::url_encode(const std::string_view text) {
+    std::string client::url_encode(const std::string_view text) {
         static constexpr char hex[] = "0123456789ABCDEF";
         std::string out;
         out.reserve(text.size());
@@ -157,23 +157,23 @@ namespace sc {
         return out;
     }
 
-    std::string rest::form_encode(const fields &form) {
+    std::string client::form_encode(const fields &form) {
         std::string out;
         for (const auto &[name, value]: form) out += (out.empty() ? "" : "&") + url_encode(name) + "=" + url_encode(value);
         return out;
     }
 
-    rest &rest::query(const std::string &name, const std::string &value) {
+    client &client::query(const std::string &name, const std::string &value) {
         query_ += (query_.empty() ? "" : "&") + url_encode(name) + "=" + url_encode(value);
         return *this;
     }
 
-    rest &rest::query(const fields &parameters) {
+    client &client::query(const fields &parameters) {
         for (const auto &[name, value]: parameters) query(name, value);
         return *this;
     }
 
-    std::string rest::perform(const std::string &method, const std::string *body, const std::vector<part> *parts) {
+    std::string client::perform(const std::string &method, const std::string *body, const std::vector<part> *parts) {
         detail::curl conn;
         std::string url = url_;
         if (!query_.empty()) {
@@ -251,19 +251,19 @@ namespace sc {
         return response;
     }
 
-    std::string rest::get() { return perform("GET", nullptr); }
+    std::string client::get() { return perform("GET", nullptr); }
 
-    std::string rest::head() { return perform("HEAD", nullptr); }
+    std::string client::head() { return perform("HEAD", nullptr); }
 
-    std::string rest::post(const std::string &jsonData) { return perform("POST", &jsonData); }
+    std::string client::post(const std::string &jsonData) { return perform("POST", &jsonData); }
 
-    std::string rest::put(const std::string &jsonData) { return perform("PUT", &jsonData); }
+    std::string client::put(const std::string &jsonData) { return perform("PUT", &jsonData); }
 
-    std::string rest::patch(const std::string &body) { return perform("PATCH", &body); }
+    std::string client::patch(const std::string &body) { return perform("PATCH", &body); }
 
-    std::string rest::del() { return perform("DELETE", nullptr); }
+    std::string client::del() { return perform("DELETE", nullptr); }
 
-    std::string rest::post_form(const fields &form) {
+    std::string client::post_form(const fields &form) {
         const auto body = form_encode(form);
         const auto kept = headers_;
         header("Content-Type", "application/x-www-form-urlencoded");
@@ -272,61 +272,61 @@ namespace sc {
         return answer;
     }
 
-    std::string rest::post_multipart(const std::vector<part> &parts) { return perform("POST", nullptr, &parts); }
+    std::string client::post_multipart(const std::vector<part> &parts) { return perform("POST", nullptr, &parts); }
 
-    void rest::header(const std::string &key, const std::string &value) { headers_[lowercase(key)] = {key, value}; }
+    void client::header(const std::string &key, const std::string &value) { headers_[lowercase(key)] = {key, value}; }
 
-    void rest::bearer(const std::string &token) { header("Authorization", "Bearer " + token); }
+    void client::bearer(const std::string &token) { header("Authorization", "Bearer " + token); }
 
-    rest &rest::timeout(const long timeout) {
+    client &client::timeout(const long timeout) {
         timeout_secs_ = timeout;
         return *this;
     }
 
-    rest &rest::connect_timeout(const long timeout) {
+    client &client::connect_timeout(const long timeout) {
         connect_timeout_secs_ = timeout;
         return *this;
     }
 
-    rest &rest::idle_timeout(const long seconds) {
+    client &client::idle_timeout(const long seconds) {
         idle_secs_ = seconds;
         return *this;
     }
 
-    rest &rest::client_certificate(const std::string &certificate_file, const std::string &key_file, const std::string &passphrase) {
+    client &client::client_certificate(const std::string &certificate_file, const std::string &key_file, const std::string &passphrase) {
         certificate_file_ = certificate_file;
         key_file_ = key_file;
         passphrase_ = passphrase;
         return *this;
     }
 
-    rest &rest::trust(const std::string &ca_file) {
+    client &client::trust(const std::string &ca_file) {
         ca_file_ = ca_file;
         return *this;
     }
 
-    rest &rest::verify_host(const bool on) {
+    client &client::verify_host(const bool on) {
         verify_host_ = on;
         return *this;
     }
 
-    rest &rest::pinned_public_key(const std::string &pins) {
+    client &client::pinned_public_key(const std::string &pins) {
         pins_ = pins;
         return *this;
     }
 
-    rest &rest::follow_redirects(const bool on, const long max) {
+    client &client::follow_redirects(const bool on, const long max) {
         follow_ = on;
         max_redirects_ = max;
         return *this;
     }
 
-    rest &rest::quiet(const bool on) {
+    client &client::quiet(const bool on) {
         quiet_ = on;
         return *this;
     }
 
-    std::string rest::fetch(const std::string &url, const std::string &base_url) {
+    std::string client::fetch(const std::string &url, const std::string &base_url) {
         if (url.empty() || url.size() > 100) return "";
         if (const auto cached = fetch_cache().find(url); cached != fetch_cache().end()) return cached->second;
 
@@ -337,7 +337,7 @@ namespace sc {
             const auto local_path = url.substr(base_url.size());
             if (std::filesystem::exists(local_path)) content = file_get_contents(local_path);
         }
-        if (content.empty()) content = rest(url).get();
+        if (content.empty()) content = client(url).get();
 
         return fetch_cache()[url] = content;
     }

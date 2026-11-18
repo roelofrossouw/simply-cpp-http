@@ -3,13 +3,13 @@
 #include <sc/core/core.h>
 #include <sc/core/timer.h>
 #include <iostream>
-#include <sc/http/rest.h>
+#include <sc/http/client.h>
 #include <nlohmann/json.hpp>
 
 using namespace std;
 using json = nlohmann::ordered_json;
 
-namespace sc {
+namespace sc::http {
     ollama::ollama(const string &model_name, const string &host, const int port)
         : url(host + ":" + to_string(port) + "/api/"),
           model(model_name) {
@@ -19,7 +19,7 @@ namespace sc {
 
     vector<string> ollama::models() {
         vector<string> list;
-        auto models = json::parse(rest(url + "tags").get())["models"];
+        auto models = json::parse(client(url + "tags").get())["models"];
         for (auto model_info: models) list.emplace_back(model_info["name"]);
         return list;
     }
@@ -70,7 +70,7 @@ namespace sc {
             data["images"].push_back(image_data);
         }
         data["prompt"] = prompt;
-        last_result = rest(url + "generate").timeout(timeout).post(data.dump());
+        last_result = client(url + "generate").timeout(timeout).post(data.dump());
         try {
             auto result = json::parse(last_result);
             if (!result.contains("response")) return result.dump(4);

@@ -1,8 +1,9 @@
 # simply-cpp-http
 
-`sc-http` is the HTTP client of the simply-cpp suite: `sc::rest` over libcurl, and `sc::ollama`,
+`sc-http` is the HTTP client of the simply-cpp suite: `sc::http::client` over libcurl, and `sc::http::ollama`,
 which talks to an [Ollama](https://ollama.com) server with it. Both were in sc-core until sc-core
-2.0.0; their names and headers (`rest.h`, `ollama.h`) didn't change.
+2.0.0. Since sc-http 3.0.0 they are in `sc::http`: `sc::rest` (`<sc/http/rest.h>`) is now
+`sc::http::client` (`<sc/http/client.h>`), and `sc::ollama` is `sc::http::ollama` (`<sc/http/ollama.h>`).
 
 ## Install
 
@@ -19,24 +20,24 @@ target_link_libraries(myapp PRIVATE sc::sc-http)   # or sc::sc-http-shared
 ```
 
 ```cpp
-#include <sc/http/rest.h>
+#include <sc/http/client.h>
 
-sc::rest api{"https://example.com/api/items"};
+sc::http::client api{"https://example.com/api/items"};
 api.bearer(token);
 const auto body = api.timeout(5).post(R"({"name": "x"})");   // JSON unless header() says otherwise
 if (api.status() != 200) std::cerr << api.status() << " " << api.error() << '\n';
 
-sc::rest search{"https://example.com/find"};
+sc::http::client search{"https://example.com/find"};
 search.query("q", "a b").query({{"page", "2"}});              // ?q=a%20b&page=2
 const auto page = search.follow_redirects().get();            // search.effective_url(), total_time()
 
-sc::rest soap{"https://example.com/service"};
+sc::http::client soap{"https://example.com/service"};
 soap.header("Content-Type", "text/xml; charset=utf-8");
 soap.header("SOAPAction", "\"urn:Ping\"");
 soap.client_certificate("/etc/app/client.pem", {}, passphrase); // certificate and key in one PEM
 const auto envelope = soap.quiet().post(xml);
 
-sc::rest upload{"https://example.com/upload"};
+sc::http::client upload{"https://example.com/upload"};
 upload.post_form({{"name", "Jo"}, {"tag", "a"}});              // application/x-www-form-urlencoded
 upload.post_multipart({{.name = "note", .value = "hi"},
                        {.name = "file", .file = "/tmp/report.pdf", .filename = "report.pdf"}});
@@ -74,7 +75,7 @@ upload.post_multipart({{.name = "note", .value = "hi"},
 - `rest::fetch(url, base_url)` reads a local file of that path when there is one, else GETs it,
   and keeps the answer for the rest of the process.
 
-`sc::ollama` (`ollama.h`) lists a server's models and asks one, with images when the model takes
+`sc::http::ollama` (`ollama.h`) lists a server's models and asks one, with images when the model takes
 them; see the header.
 
 ## Building and testing

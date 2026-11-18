@@ -7,26 +7,27 @@
 #include <utility>
 #include <vector>
 
-namespace sc {
+namespace sc::http {
     /// HTTP to one URL over libcurl: GET, HEAD, POST, PUT, PATCH and DELETE, with query parameters,
     /// headers, a bearer token, JSON, form and multipart bodies, timeouts, client certificates and
     /// redirects. Only http:// and https:// URLs (redirects too); TLS certificates and host names
     /// are checked unless told otherwise. Requests send "Content-Type: application/json" unless
     /// header() says otherwise (an empty value sends none).
     ///
-    ///     sc::rest api{"https://example.com/api/items"};
+    ///     sc::http::client api{"https://example.com/api/items"};
     ///     api.bearer(token);
     ///     const auto body = api.timeout(5).post(R"({"name": "x"})");
     ///     if (api.status() != 200) ...
     ///
-    ///     sc::rest search{"https://example.com/find"};
+    ///     sc::http::client search{"https://example.com/find"};
     ///     search.query("q", "a b").query("page", "2");               // ?q=a%20b&page=2
     ///     const auto page = search.follow_redirects().get();
-    ///     sc::rest upload{"https://example.com/upload"};
+    ///     sc::http::client upload{"https://example.com/upload"};
     ///     upload.post_multipart({{.name = "note", .value = "hi"}, {.name = "file", .file = "/tmp/a.pdf"}});
-    class rest {
+    // An HTTP request (sc::rest until 3.0.0).
+    class client {
     public:
-        explicit rest(const std::string &url);
+        explicit client(const std::string &url);
 
         /// name=value pairs, in order (a name may repeat).
         using fields = std::vector<std::pair<std::string, std::string>>;
@@ -43,8 +44,8 @@ namespace sc {
         };
 
         /// A query parameter, URL-encoded and added to the URL (after its own, with ? or &).
-        rest &query(const std::string &name, const std::string &value);
-        rest &query(const fields &parameters);
+        client &query(const std::string &name, const std::string &value);
+        client &query(const fields &parameters);
 
         /// The response body, whatever the status (see status()). When no response came, the
         /// error goes to std::cerr (unless quiet()) and the body is empty.
@@ -86,32 +87,32 @@ namespace sc {
 
         /// The whole request's limit in seconds (default 30; 0: none); connect_timeout() only
         /// connecting's (default 10).
-        rest &timeout(long timeout);
-        rest &connect_timeout(long timeout);
+        client &timeout(long timeout);
+        client &connect_timeout(long timeout);
         /// Gives up when no data arrives for this many seconds (less than a byte a second over that
         /// time), however long the whole request may take: a slow but steady answer goes on, a
         /// silent server doesn't. 0 (the default): no such limit. With timeout(0), as PHP's
         /// file_get_contents' read timeout.
-        rest &idle_timeout(long seconds);
+        client &idle_timeout(long seconds);
         /// A TLS client certificate (PEM) and its key, for a server that asks for one (LXD). An
         /// empty key_file: the key is in certificate_file too (as PHP's local_cert). passphrase:
         /// the key's, when it's encrypted.
-        rest &client_certificate(const std::string &certificate_file, const std::string &key_file = {}, const std::string &passphrase = {});
+        client &client_certificate(const std::string &certificate_file, const std::string &key_file = {}, const std::string &passphrase = {});
         /// Trusts the server's certificate only when it's signed by (or is) one in this PEM file,
         /// rather than the system's authorities: a self-signed server's own certificate pins it.
-        rest &trust(const std::string &ca_file);
+        client &trust(const std::string &ca_file);
         /// Whether the certificate must name the host connected to (default true). A server reached
         /// by an address its certificate doesn't list (a cluster member by IP) needs false; the
         /// certificate is still checked against trust().
-        rest &verify_host(bool on);
+        client &verify_host(bool on);
         /// Accepts only a server whose public key is this, curl's "sha256//<base64>" (several
         /// joined by ';'), whatever else is trusted.
-        rest &pinned_public_key(const std::string &pins);
+        client &pinned_public_key(const std::string &pins);
         /// Follows redirects (Location), at most max of them, to http:// and https:// URLs only;
         /// off by default. A POST answered by a 301, 302 or 303 is followed with a GET, as browsers do.
-        rest &follow_redirects(bool on = true, long max = 5);
+        client &follow_redirects(bool on = true, long max = 5);
         /// Keeps a failed request's error off std::cerr; error() still has it.
-        rest &quiet(bool on = true);
+        client &quiet(bool on = true);
         /// Why the last request got no response ("Couldn't connect to server"); empty when one came.
         [[nodiscard]] const std::string &error() const { return error_; }
         /// The same as curl's error number (CURLcode: 7 couldn't connect, 28 timed out, 56 the

@@ -1,5 +1,5 @@
 #include <sc/http/ollama.h>
-#include <sc/http/rest.h>
+#include <sc/http/client.h>
 #include <sc/core/sc.h>
 
 #include <stdexcept>
@@ -25,7 +25,7 @@ int main() {
     {
         // Naming a model keeps the constructor offline; it only queries the server
         // for a model list when no model is given.
-        sc::ollama ai{"my-model", live_host, dead_port};
+        sc::http::ollama ai{"my-model", live_host, dead_port};
         CHECK_EQ(ai.getUrl(), string{"http://127.0.0.1:9/api/"});
         CHECK_EQ(ai.getModel(), string{"my-model"});
         CHECK_EQ(ai.getFormat(), string{"json"});
@@ -40,7 +40,7 @@ int main() {
 
     SECTION("Setters and getters round trip");
     {
-        sc::ollama ai{"my-model", live_host, dead_port};
+        sc::http::ollama ai{"my-model", live_host, dead_port};
 
         ai.setUrl("http://example.test/api/");
         CHECK_EQ(ai.getUrl(), string{"http://example.test/api/"});
@@ -67,7 +67,7 @@ int main() {
 
     SECTION("setFormat strips the quotes a dumped json string carries");
     {
-        sc::ollama ai{"my-model", live_host, dead_port};
+        sc::http::ollama ai{"my-model", live_host, dead_port};
         ai.setFormat("\"json\"");
         CHECK_EQ(ai.getFormat(), string{"json"});
         // A schema is kept verbatim.
@@ -79,7 +79,7 @@ int main() {
 
     SECTION("An unreachable server is reported rather than crashing");
     {
-        sc::ollama ai{"my-model", live_host, dead_port};
+        sc::http::ollama ai{"my-model", live_host, dead_port};
         ai.setTimeout(2);
 
         // generate() surfaces the transport error as json.
@@ -97,7 +97,7 @@ int main() {
 
     SECTION("An unreadable image is rejected before the request is sent");
     {
-        sc::ollama ai{"my-model", live_host, dead_port};
+        sc::http::ollama ai{"my-model", live_host, dead_port};
         ai.setTimeout(2);
         CHECK_EQ(ai.generate("describe this", {"no-such-file.jpg"}), string{"Could not read the image"});
     }
@@ -117,7 +117,7 @@ int main() {
     // exception rather than the documented error document.
     // SECTION("process reports an invalid request as json");
     // {
-    //     const auto answer = sc::ollama::process("not json");
+    //     const auto answer = sc::http::ollama::process("not json");
     //     CHECK(contains(answer, "Invalid request"));
     // }
 
@@ -125,7 +125,7 @@ int main() {
     {
         vector<string> available;
         try {
-            sc::ollama probe{"probe", live_host, live_port};
+            sc::http::ollama probe{"probe", live_host, live_port};
             probe.setTimeout(5);
             available = probe.models();
         } catch (const std::exception &) {
@@ -137,7 +137,7 @@ int main() {
         } else {
             for (const auto &name: available) CHECK(!name.empty());
 
-            sc::ollama ai{available.front(), live_host, live_port};
+            sc::http::ollama ai{available.front(), live_host, live_port};
             ai.setTimeout(120);
             ai.setTemperature(0);
             ai.clearFormat();

@@ -8,7 +8,7 @@ option(SC_HTTP_BUILD_TESTS "Build simply-cpp-http tests" ${PROJECT_IS_TOP_LEVEL}
 get_sc_version()
 message(STATUS "SimplyCPP ${SC_MODULE} Version: ${SC_VERSION}")
 
-# sc::lowercase and file_get_contents (sc.h), nlohmann/json for sc::ollama; libcurl underneath sc::rest.
+# sc::lowercase and file_get_contents (sc.h), nlohmann/json for sc::http::ollama; libcurl underneath sc::http::client.
 find_or_install_package(sc-core simply-cpp-dev simply-cpp 3.0.0)
 find_or_install_package(CURL libcurl4-openssl-dev curl)
 
@@ -18,10 +18,10 @@ set(SOURCE_LINK_LIBRARIES)
 
 # libcurl by name, as sc-core linked it: CURL::libcurl's include directory (the macOS SDK's
 # usr/include) would come before libc++'s headers in every module using sc-http.
-add_sc_object(rest LINK_LIBRARIES sc::sc-core curl PUBLIC_LINK_LIBRARIES sc::sc-core curl)
+add_sc_object(client LINK_LIBRARIES sc::sc-core curl PUBLIC_LINK_LIBRARIES sc::sc-core curl)
 add_sc_object(ollama LINK_LIBRARIES sc::sc-core nlohmann_json::nlohmann_json PUBLIC_LINK_LIBRARIES sc::sc-core)
 
-add_sc_libraries(DESCRIPTION "simply-cpp HTTP: sc::rest over libcurl, and sc::ollama")
+add_sc_libraries(DESCRIPTION "simply-cpp HTTP: sc::http::client over libcurl, and sc::http::ollama")
 target_compile_features(sc-http PUBLIC cxx_std_20)
 target_compile_features(sc-http-shared PUBLIC cxx_std_20)
 

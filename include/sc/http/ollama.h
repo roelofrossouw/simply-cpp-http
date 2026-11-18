@@ -4,7 +4,7 @@
 #include <map>
 #include <vector>
 
-namespace sc {
+namespace sc::http {
     // A client for an Ollama server's generate API, by default at http://127.0.0.1:11434. Without
     // a model it takes the server's first one, so making one asks the server.
     class ollama {

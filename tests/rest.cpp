@@ -1,6 +1,6 @@
-// sc::rest against a stand-in web server (resource/http_server.py: HTTP, HTTPS, and HTTPS that wants
+// sc::http::client against a stand-in web server (resource/http_server.py: HTTP, HTTPS, and HTTPS that wants
 // a client certificate), and fetch() on local files.
-#include <sc/http/rest.h>
+#include <sc/http/client.h>
 #include <sc/core/sc.h>
 
 #include "sc_test.h"
@@ -44,31 +44,31 @@ int main() {
 
     SECTION("URL and form encoding");
     {
-        CHECK_EQ(sc::rest::url_encode("a b&c=d/é~._-"), std::string{"a%20b%26c%3Dd%2F%C3%A9~._-"});
-        CHECK_EQ(sc::rest::form_encode({{"name", "Jo Soap"}, {"tag", "a+b"}, {"tag", ""}}), std::string{"name=Jo%20Soap&tag=a%2Bb&tag="});
-        CHECK_EQ(sc::rest::form_encode({}), std::string{});
+        CHECK_EQ(sc::http::client::url_encode("a b&c=d/é~._-"), std::string{"a%20b%26c%3Dd%2F%C3%A9~._-"});
+        CHECK_EQ(sc::http::client::form_encode({{"name", "Jo Soap"}, {"tag", "a+b"}, {"tag", ""}}), std::string{"name=Jo%20Soap&tag=a%2Bb&tag="});
+        CHECK_EQ(sc::http::client::form_encode({}), std::string{});
     }
 
     SECTION("fetch reads a local file before trying the network, and keeps it");
     {
         const auto path = at("payload.txt");
         sc::file_put_contents(path, "hello from disk");
-        CHECK_EQ(sc::rest::fetch(path), std::string{"hello from disk"});
+        CHECK_EQ(sc::http::client::fetch(path), std::string{"hello from disk"});
         sc::file_put_contents(path, "changed");
-        CHECK_EQ(sc::rest::fetch(path), std::string{"hello from disk"});
+        CHECK_EQ(sc::http::client::fetch(path), std::string{"hello from disk"});
         const std::string base = "https://example.com/";
         // Relative, so the URL stays under fetch()'s 100 characters.
         const std::string based = "sc-http-based.txt";
         sc::file_put_contents(based, "resolved locally");
-        CHECK_EQ(sc::rest::fetch(base + based, base), std::string{"resolved locally"});
+        CHECK_EQ(sc::http::client::fetch(base + based, base), std::string{"resolved locally"});
         fs::remove(based);
-        CHECK_EQ(sc::rest::fetch("https://example.com/" + std::string(100, 'a')), std::string{});
-        CHECK_EQ(sc::rest::fetch(""), std::string{});
+        CHECK_EQ(sc::http::client::fetch("https://example.com/" + std::string(100, 'a')), std::string{});
+        CHECK_EQ(sc::http::client::fetch(""), std::string{});
     }
 
     SECTION("No response: reported, not thrown; only http and https");
     {
-        sc::rest nowhere{"http://127.0.0.1:1/x"};
+        sc::http::client nowhere{"http://127.0.0.1:1/x"};
         nowhere.quiet().connect_timeout(2);
         CHECK_EQ(nowhere.get(), std::string{});
         CHECK_EQ(nowhere.status(), 0L);
@@ -76,7 +76,7 @@ int main() {
         CHECK(nowhere.post("{}").find("\"error\"") != std::string::npos);
         // Nothing but http and https: no file read, no ftp, gopher or dict.
         for (const std::string url: {"file:///etc/hosts", "file:///etc/hostname", "ftp://127.0.0.1/x", "gopher://127.0.0.1/x", "dict://127.0.0.1/x"}) {
-            sc::rest other{url};
+            sc::http::client other{url};
             CHECK_EQ(other.quiet().get(), std::string{});
             CHECK_EQ(other.status(), 0L);
             CHECK_MSG(other.error().find("rotocol") != std::string::npos, url + ": " + other.error());
@@ -122,7 +122,7 @@ int main() {
     SECTION("Methods, bodies and their Content-Type");
     {
         for (const std::string method: {"GET", "POST", "PUT", "PATCH", "DELETE"}) {
-            sc::rest request{http + "/echo"};
+            sc::http::client request{http + "/echo"};
             const auto body = method == "GET" ? request.get() : method == "POST" ? request.post(R"({"a":1})") : method == "PUT" ? request.put(R"({"a":1})")
                                                             : method == "PATCH" ? request.patch(R"({"a":1})") : request.del();
             const auto echo = json::parse(body);
@@ -132,12 +132,12 @@ int main() {
                 CHECK_EQ(echo.at("content_type").get<std::string>(), std::string{"application/json"});
             }
         }
-        sc::rest head{http + "/binary"};
+        sc::http::client head{http + "/binary"};
         CHECK_EQ(head.head(), std::string{});
         CHECK_EQ(head.status(), 200L);
         CHECK_EQ(head.response_headers().at("x-test"), std::string{"yes"});
 
-        sc::rest xml{http + "/echo"};
+        sc::http::client xml{http + "/echo"};
         xml.header("content-type", "text/xml; charset=utf-8"); // replaces the default, whatever its case
         xml.header("SOAPAction", "\"urn:Ping\"");
         const auto soap = json::parse(xml.post("<Envelope/>"));
@@ -145,23 +145,23 @@ int main() {
         CHECK_EQ(soap.at("headers").at("soapaction").get<std::string>(), std::string{"\"urn:Ping\""});
         CHECK_EQ(decoded(soap), std::string{"<Envelope/>"});
 
-        sc::rest bare{http + "/echo"};
+        sc::http::client bare{http + "/echo"};
         bare.header("Content-Type", ""); // none at all, not even curl's own
         const auto none = json::parse(bare.post("raw"));
         CHECK(none.at("content_type").is_null());
 
-        sc::rest zeros{http + "/echo"};
+        sc::http::client zeros{http + "/echo"};
         const std::string binary{"a\0b\0", 4};
         CHECK_EQ(decoded(json::parse(zeros.post(binary))), binary);
     }
 
     SECTION("Query parameters, form and multipart bodies");
     {
-        sc::rest search{http + "/echo?fixed=1"};
+        sc::http::client search{http + "/echo?fixed=1"};
         search.query("q", "a b&c").query({{"page", "2"}});
         CHECK_EQ(json::parse(search.get()).at("query").get<std::string>(), std::string{"fixed=1&q=a%20b%26c&page=2"});
 
-        sc::rest form{http + "/echo"};
+        sc::http::client form{http + "/echo"};
         const auto posted = json::parse(form.post_form({{"name", "Jo Soap"}, {"x", "1&2"}}));
         CHECK_EQ(posted.at("content_type").get<std::string>(), std::string{"application/x-www-form-urlencoded"});
         CHECK_EQ(decoded(posted), std::string{"name=Jo%20Soap&x=1%262"});
@@ -169,7 +169,7 @@ int main() {
         CHECK_EQ(json::parse(form.post("{}")).at("content_type").get<std::string>(), std::string{"application/json"});
 
         sc::file_put_contents(at("upload.txt"), "file contents");
-        sc::rest upload{http + "/echo"};
+        sc::http::client upload{http + "/echo"};
         const auto multipart = json::parse(upload.post_multipart({{.name = "note", .value = "hi there"},
                                                                   {.name = "doc", .file = at("upload.txt"), .filename = "report.txt", .content_type = "text/plain"}}));
         const auto type = multipart.at("content_type").get<std::string>();
@@ -178,7 +178,7 @@ int main() {
         CHECK(sent.find("name=\"note\"") != std::string::npos && sent.find("hi there") != std::string::npos);
         CHECK(sent.find("filename=\"report.txt\"") != std::string::npos && sent.find("file contents") != std::string::npos);
 
-        sc::rest missing{http + "/echo"};
+        sc::http::client missing{http + "/echo"};
         (void) missing.quiet().post_multipart({{.name = "doc", .file = at("no-such-file")}});
         CHECK_EQ(missing.status(), 0L);
         CHECK(missing.error().find("no-such-file") != std::string::npos);
@@ -186,11 +186,11 @@ int main() {
 
     SECTION("Status, headers, binary bodies, effective URL and time");
     {
-        sc::rest gone{http + "/status/404"};
+        sc::http::client gone{http + "/status/404"};
         CHECK_EQ(gone.get(), std::string{"status 404"});
         CHECK_EQ(gone.status(), 404L);
         CHECK(gone.error().empty());
-        sc::rest binary{http + "/binary"};
+        sc::http::client binary{http + "/binary"};
         const auto bytes = binary.get();
         CHECK_EQ(bytes.size(), std::size_t{256});
         CHECK_EQ(static_cast<unsigned char>(bytes[255]), 255);
@@ -201,20 +201,20 @@ int main() {
 
     SECTION("Redirects: not followed unless asked, at most max");
     {
-        sc::rest plain{http + "/redirect/2"};
+        sc::http::client plain{http + "/redirect/2"};
         (void) plain.get();
         CHECK_EQ(plain.status(), 302L);
-        sc::rest followed{http + "/redirect/2"};
+        sc::http::client followed{http + "/redirect/2"};
         CHECK_EQ(json::parse(followed.follow_redirects().get()).at("path").get<std::string>(), std::string{"/echo"});
         CHECK_EQ(followed.status(), 200L);
         CHECK_EQ(followed.effective_url(), http + "/echo");
         // A redirect to file:// is refused, not followed.
-        sc::rest to_file{http + "/to-file"};
+        sc::http::client to_file{http + "/to-file"};
         const auto refused = to_file.quiet().follow_redirects().get();
         CHECK_EQ(to_file.status(), 0L);
         CHECK(refused.find("localhost") == std::string::npos); // /etc/hosts wasn't read
         CHECK_MSG(to_file.error().find("rotocol") != std::string::npos, to_file.error());
-        sc::rest too_many{http + "/redirect/4"};
+        sc::http::client too_many{http + "/redirect/4"};
         (void) too_many.quiet().follow_redirects(true, 2).get();
         CHECK_EQ(too_many.status(), 0L);
         CHECK(!too_many.error().empty());
@@ -222,7 +222,7 @@ int main() {
 
     SECTION("Timeouts");
     {
-        sc::rest slow{http + "/slow"};
+        sc::http::client slow{http + "/slow"};
         const auto started = std::chrono::steady_clock::now();
         (void) slow.quiet().timeout(1).get();
         CHECK_EQ(slow.status(), 0L);
@@ -232,59 +232,59 @@ int main() {
 
     SECTION("An idle limit: a slow but steady answer goes on, a silent one stops; curl's error numbers");
     {
-        sc::rest drip{http + "/drip"};
+        sc::http::client drip{http + "/drip"};
         CHECK_EQ(drip.timeout(0).idle_timeout(2).get(), std::string{"drips"}); // 3 s in all, a byte every 0.6 s
         CHECK_EQ(drip.status(), 200L);
         CHECK_EQ(drip.error_code(), 0L);
-        sc::rest stall{http + "/stall"};
+        sc::http::client stall{http + "/stall"};
         const auto started = std::chrono::steady_clock::now();
         (void) stall.quiet().timeout(0).idle_timeout(1).get();
         CHECK_EQ(stall.status(), 0L);
         CHECK_EQ(stall.error_code(), 28L);
         CHECK(std::chrono::steady_clock::now() - started < std::chrono::milliseconds{3500}); // not the 4 s silence
-        sc::rest nowhere{"http://127.0.0.1:1/"};
+        sc::http::client nowhere{"http://127.0.0.1:1/"};
         (void) nowhere.quiet().get();
         CHECK_EQ(nowhere.error_code(), 7L); // CURLE_COULDNT_CONNECT
     }
 
     SECTION("Compressed answers: gzip asked for and undone");
     {
-        sc::rest packed{http + "/gzip"};
+        sc::http::client packed{http + "/gzip"};
         CHECK_EQ(packed.get(), std::string{"compressed hello"});
         CHECK_EQ(packed.response_headers().at("content-encoding"), std::string{"gzip"});
-        sc::rest own{http + "/echo"};
+        sc::http::client own{http + "/echo"};
         const auto asked = json::parse(own.get()).at("headers");
         CHECK_MSG(asked.contains("accept-encoding") && asked.at("accept-encoding").get<std::string>().find("gzip") != std::string::npos, asked.dump());
     }
 
     SECTION("TLS: a self-signed server refused unless trusted; host names; client certificates");
     {
-        sc::rest unknown{https + "/echo"};
+        sc::http::client unknown{https + "/echo"};
         (void) unknown.quiet().get();
         CHECK_EQ(unknown.status(), 0L); // the system's authorities don't know it
         CHECK(!unknown.error().empty());
-        sc::rest trusted{https + "/echo"};
+        sc::http::client trusted{https + "/echo"};
         CHECK_EQ(json::parse(trusted.trust(at("server.crt")).get()).at("method").get<std::string>(), std::string{"GET"});
-        sc::rest by_name{"https://localhost:" + std::to_string(https_port) + "/echo"};
+        sc::http::client by_name{"https://localhost:" + std::to_string(https_port) + "/echo"};
         (void) by_name.quiet().trust(at("server.crt")).get();
         CHECK_EQ(by_name.status(), 0L); // its certificate names 127.0.0.1, not localhost
-        sc::rest unchecked{"https://localhost:" + std::to_string(https_port) + "/echo"};
+        sc::http::client unchecked{"https://localhost:" + std::to_string(https_port) + "/echo"};
         (void) unchecked.quiet().trust(at("server.crt")).verify_host(false).get();
         CHECK_EQ(unchecked.status(), 200L);
 
-        sc::rest anonymous{mtls + "/echo"};
+        sc::http::client anonymous{mtls + "/echo"};
         (void) anonymous.quiet().trust(at("server.crt")).get();
         CHECK_EQ(anonymous.status(), 0L); // no client certificate
-        sc::rest client{mtls + "/echo"};
+        sc::http::client client{mtls + "/echo"};
         (void) client.quiet().trust(at("server.crt")).client_certificate(at("client.crt"), at("client.key"), "secret").get();
         CHECK_EQ(client.status(), 200L);
-        sc::rest one_pem{mtls + "/echo"};
+        sc::http::client one_pem{mtls + "/echo"};
         (void) one_pem.quiet().trust(at("server.crt")).client_certificate(at("client.pem"), {}, "secret").get();
         CHECK_EQ(one_pem.status(), 200L);
-        sc::rest wrong_passphrase{mtls + "/echo"};
+        sc::http::client wrong_passphrase{mtls + "/echo"};
         (void) wrong_passphrase.quiet().trust(at("server.crt")).client_certificate(at("client.pem"), {}, "wrong").get();
         CHECK_EQ(wrong_passphrase.status(), 0L);
-        sc::rest stranger{mtls + "/echo"};
+        sc::http::client stranger{mtls + "/echo"};
         (void) stranger.quiet().trust(at("server.crt")).client_certificate(at("stranger.crt"), at("stranger.key")).get();
         CHECK_EQ(stranger.status(), 0L);
     }
