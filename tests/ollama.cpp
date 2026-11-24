@@ -93,6 +93,9 @@ int main() {
 
         // models() cannot parse an empty body and says so.
         CHECK_THROWS_AS(ai.models(), std::exception);
+
+        // chat() throws, saying there was no answer.
+        CHECK_THROWS_AS(ai.chat("Be brief.", "hello"), std::runtime_error);
     }
 
     SECTION("An unreadable image is rejected before the request is sent");
@@ -156,6 +159,12 @@ int main() {
             CHECK(contains(stats, "model"));
             CHECK(!contains(stats, "\"context\"")); // stats strips the context
             CHECK(!contains(stats, "\"response\""));
+
+            // chat(): a system message and the user's; JSON when asked for
+            ai.setFormat("json");
+            const auto chatted = ai.chat("Answer as JSON {\"word\": string}.", "Give the word ping.");
+            CHECK_MSG(contains(chatted, "word"), "got \"" + chatted + '"');
+            ai.clearFormat();
 
             const auto second = ai.generate("And now reply with exactly one word: pong");
             CHECK(!second.empty());

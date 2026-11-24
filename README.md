@@ -76,7 +76,8 @@ upload.post_multipart({{.name = "note", .value = "hi"},
   and keeps the answer for the rest of the process.
 
 `sc::http::ollama` (`ollama.h`) lists a server's models and asks one, with images when the model takes
-them; see the header.
+them (`generate()`), or chats: `chat(system, user)` sends a system message and the user's to
+`/api/chat` and returns the reply's text, throwing `std::runtime_error` when none comes; see the header.
 
 ## Building and testing
 

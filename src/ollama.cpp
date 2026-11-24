@@ -3,6 +3,7 @@
 #include <sc/core/core.h>
 #include <sc/core/timer.h>
 #include <iostream>
+#include <stdexcept>
 #include <sc/http/client.h>
 #include <nlohmann/json.hpp>
 
@@ -86,6 +87,42 @@ namespace sc::http {
             cerr << "Could not parse json " << e.what();
             return last_result;
         }
+    }
+
+    string ollama::chat(const std::string &system, const std::string &user) {
+        json data{
+            {"model", model},
+            {"stream", false},
+            {"think", think},
+            {"keep_alive", keep_alive},
+        };
+        data["options"] = {
+            {"temperature", temperature},
+            {"top_p", top_p},
+            {"top_k", top_k},
+            {"repeat_penalty", repeat_penalty},
+            {"num_predict", num_predict},
+            {"num_ctx", num_ctx},
+            {"seed", seed},
+        };
+        if (!format.empty()) {
+            if (format == "json") data["format"] = format;
+            else data["format"] = json::parse(format);
+        }
+        data["messages"] = json::array();
+        if (!system.empty()) data["messages"].push_back({{"role", "system"}, {"content", system}});
+        data["messages"].push_back({{"role", "user"}, {"content", user}});
+        client server{url + "chat"};
+        server.quiet().timeout(timeout);
+        last_result = server.post(data.dump());
+        if (server.status() == 0) throw std::runtime_error{"no answer from " + url + "chat: " + server.error()};
+        if (server.status() != 200)
+            throw std::runtime_error{url + "chat answered " + to_string(server.status()) + ": " + last_result.substr(0, 300)};
+        const auto result = json::parse(last_result, nullptr, false);
+        if (result.is_discarded() || !result.contains("message") || !result["message"].is_object() ||
+            !result["message"].contains("content") || !result["message"]["content"].is_string())
+            throw std::runtime_error{url + "chat answered without a message: " + last_result.substr(0, 300)};
+        return result["message"]["content"].get<std::string>();
     }
 
     string ollama::stats() {

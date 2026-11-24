@@ -5,7 +5,7 @@
 #include <vector>
 
 namespace sc::http {
-    // A client for an Ollama server's generate API, by default at http://127.0.0.1:11434. Without
+    // A client for an Ollama server's generate and chat APIs, by default at http://127.0.0.1:11434. Without
     // a model it takes the server's first one, so making one asks the server.
     class ollama {
         static constexpr std::string_view DEFAULT_IP = "http://127.0.0.1";
@@ -20,6 +20,12 @@ namespace sc::http {
         // The model's response to prompt. images are base64 data, or (under 1000 characters) file
         // names to read. The context it returns is kept for the next call, as a conversation.
         std::string generate(const std::string &prompt, const std::vector<std::string> &images = {});
+
+        // One exchange with the chat API (/api/chat): a system message, then the user's, with the
+        // options generate() sends (format, temperature, think, timeout ...); the reply's text. Nothing
+        // is kept for a next call. Throws std::runtime_error, saying why, when no reply comes: no
+        // answer (it can't connect, the timeout), a status that isn't 200, or no message in it.
+        std::string chat(const std::string &system, const std::string &user);
 
         // The last result's statistics (durations, token counts) as JSON text.
         std::string stats();
